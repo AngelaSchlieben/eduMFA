@@ -105,7 +105,7 @@
                  </div>
            </div>
        </div>
-   </div>
+   </div> 
    <div class="row">
        <div class="col-lg-4">
            <div class="panel panel-default"
@@ -187,6 +187,17 @@
            </div>
        </div>
 
-   </div>
-</div>
+   </div>   
+   <div class="row">
+       <div class="col-lg-12">
+           <div class="panel panel-default"
+                ng-show="checkRight('tokenlist')">
+               <div class="panel-heading" translate>Token Chart</div>
+               <div class="panel-body">
+                   <token-chart counts = "{Total: tokens.total, Hardware: tokens.hardware, Software: tokens.software, Unassigned_Hardware: tokens.unassigned_hardware, Unassigned_Software:tokens.unassigned_software}" ></token-chart>
+               </div>
+           </div>
+       </div>
+   </div> 
 
+</div>   

@@ -507,3 +507,32 @@ myApp.directive("piPolicyConditions", ["instanceUrl", "versioningSuffixProvider"
         },
     };
 }]);
+
+myApp.directive('tokenChart', function () {
+    return {
+        restrict: 'E',
+        scope: { counts: '=' },
+        template: '<div style="position:relative; width:100%; height:300px;"> <canvas></canvas></div>',
+        link: function (scope, element) {
+            var chart = new Chart(element.find('canvas')[0], {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{ label: 'Anzahl Token', data: [] }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+                }
+            });
+            scope.$watch('counts', function (c) {
+                if (!c) return;
+                chart.data.labels = Object.keys(c);
+                chart.data.datasets[0].data = Object.values(c);
+                chart.update();
+            },true);
+            scope.$on('$destroy', function () { chart.destroy(); });
+        }
+    };
+});
