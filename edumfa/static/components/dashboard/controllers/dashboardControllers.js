@@ -173,45 +173,76 @@ myApp.controller("dashboardController", ["ConfigFactory", "TokenFactory",
             return 0;
         };
 
-
         $scope.colorMap = {
             hardware_tokens: '#4e79a7',
             software_tokens: '#f28e2b',
-            tokens_total: '#e15759',
+            total_tokens: '#e15759',
             user_with_token: '#76b7b2',
             assigned_tokens: '#59a14f',
             unassigned_hardware_tokens: '#edc948'
         };
 
-        $scope.stats_keys = [
-            "tokens_total",
+        $scope.available_stats_keys = [
+            "total_tokens",
             "hardware_tokens",
             "software_tokens",
             "unassigned_hardware_tokens",
-            "assigned_tokens", 
-            "user_with_token"            
+            "assigned_tokens",
+            "user_with_token"
         ];
 
+        $scope.stats_keys_liste = []
+        $scope.available_stats_keys.forEach(function (sk) {
+            $scope.stats_keys_liste.push({ name: sk })
+        });
+
         $scope.time_frame = [
+            "All",
             "1 Day",
             "1 Week",
             "1 Month",
             "3 Month",
             "6 Month",
-            "1 Year",
-            "All"
+            "1 Year"
         ]
 
-
-
+        $scope.selected_start_time = $scope.time_frame[0];
 
         $scope.get_tokens_timeline = function () {
             $scope.tokens_timeline = {
                 datasets: []
             };
-            
-            $scope.stats_keys.forEach(sk =>
-                MonitoringFactory.get_monitored(sk, { }, function (data) {
+
+            var today = new Date()
+            var x = $scope.selected_start_time[0]
+            var day = today.getDate()
+            var month = today.getMonth()
+            var year = today.getFullYear()
+
+
+            if ($scope.selected_start_time === "All") {
+                $scope.start_time = ""
+            }
+            else {
+                if ($scope.selected_start_time.endsWith("Day")) {
+                    day = day - x
+                }
+                else if ($scope.selected_start_time.endsWith("Week")) {
+                    day = day - (x * 7)
+                }
+                else if ($scope.selected_start_time.endsWith("Month")) {
+                    month = month - x
+                }
+                else if ($scope.selected_start_time.endsWith("Year")) {
+                    year = year - x
+                }
+                $scope.start_time = new Date(year, month, day)
+            }
+            console.log($scope.start_time)
+
+            $scope.selected_stats_keys = $scope.selected_stats_keys_objs.map(o => o.name);
+            $scope.selected_stats_keys.forEach(sk =>
+                MonitoringFactory.get_monitored(sk, {start: $scope.start_time }, function (data) {
                     var d = data.result.value;
                     var color = $scope.colorMap[sk];
                     var dataset = {
@@ -225,7 +256,6 @@ myApp.controller("dashboardController", ["ConfigFactory", "TokenFactory",
                     $scope.tokens_timeline.datasets.push(dataset)
                 }));
         };
-
 
         if (AuthFactory.checkRight('tokenlist')) {
             $scope.get_total_token_number();
@@ -244,9 +274,6 @@ myApp.controller("dashboardController", ["ConfigFactory", "TokenFactory",
             $scope.getAdministration();
         }
 
-        if (AuthFactory.checkRight('statistics_read')) {
-            //$scope.get_tokens_timeline();
-        }
         // listen to the reload broadcast
         $scope.$on("piReload", function () {
             if (AuthFactory.checkRight('tokenlist')) {
@@ -266,7 +293,7 @@ myApp.controller("dashboardController", ["ConfigFactory", "TokenFactory",
             }
             if (AuthFactory.checkRight('statistics_read')) {
                 $scope.get_tokens_timeline();
-        }
+            }
 
         });
     }]);

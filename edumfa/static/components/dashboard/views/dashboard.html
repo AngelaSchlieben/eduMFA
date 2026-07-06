@@ -188,13 +188,24 @@
                 <div class="panel-body">
                     <div class="chart-controls">
                         <form ng-submit="get_tokens_timeline()">
-                            
-                    <button type="submit">Send</button>
-                    </form>
+                            <div style="display: flex; flex-wrap: wrap; gap: 16px;">
+                                <label>Select TimeFrame:</label>
+                                <select ng-model="selected_start_time" ng-options="x for x in time_frame"></select>
+                                <label>Select StatsKeys:</label>
+                                <isteven-multi-select 
+                                    input-model="stats_keys_liste"
+                                    output-model="selected_stats_keys_objs" 
+                                    button-label="name" 
+                                    item-label="name"
+                                    tick-property="selected">
+                                </isteven-multi-select>
+                                
+                            <button type="submit">Send</button>
+                        </form>
+                    </div>
+                    <timeline-chart token_timeline="tokens_timeline"></timeline-chart>
                 </div>
-                <timeline-chart token_timeline="tokens_timeline"></timeline-chart>
             </div>
         </div>
     </div>
-</div>
 </div>
