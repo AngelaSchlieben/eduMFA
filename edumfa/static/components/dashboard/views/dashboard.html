@@ -184,26 +184,36 @@
     <div class="row">
         <div class="col-lg-12">
             <div class="panel panel-default" ng-show="checkRight('statistics_read')">
-                <div class="panel-heading">Token Chart</div>
+                <div class="panel-heading" translate>Token Chart</div>
                 <div class="panel-body">
                     <div class="chart-controls">
-                        <form ng-submit="get_tokens_timeline()">
-                            <div style="display: flex; flex-wrap: wrap; gap: 16px;">
-                                <label>Select TimeFrame:</label>
-                                <select ng-model="selected_start_time" ng-options="x for x in time_frame"></select>
-                                <label>Select StatsKeys:</label>
-                                <isteven-multi-select 
-                                    input-model="stats_keys_liste"
-                                    output-model="selected_stats_keys_objs" 
-                                    button-label="name" 
-                                    item-label="name"
-                                    tick-property="selected">
-                                </isteven-multi-select>
-                                
-                            <button type="submit">Send</button>
-                        </form>
+                        <label translate>TimeFrame:</label>
+                        <select class="form-control" ng-model="selectedTimeFrame"
+                            ng-options="x.label for x in timeFrame" ng-change="getTokenTimeline()"></select>
+                        <label translate>StatsKeys:</label>
+                        <p>
+                            <isteven-multi-select ng-show="availableStatsKeys.length > 0"
+                                input-model="availableStatsKeys" output-model="selectedStatsKeys" button-label="name"
+                                item-label="name" tick-property="selected" index-property="id"
+                                on-item-click="getTokenTimeline()" on-select-all="getTokenTimeline()"
+                                on-select-none="clearTimeLine()" on-reset="clearTimeLine()">
+                            </isteven-multi-select>
+
+                        <div style="display: flex; flex-wrap: wrap; gap: 6px 10px;">
+                            <!-- checkboxen next to each other -->
+                            <label translate>Legend:</label>
+                            <label ng-repeat="key in selectedStatsKeys">
+                                <span ng-style="{'background-color': key.color}"
+                                    style="display: inline-block; width: 25px; height: 15px; ">
+                                    <!-- color-element for chart legend -->
+                                </span>
+                                <input type="checkbox" ng-model="selectedStatsKeys" ng-change="changeHidden(key)">
+                                {{key.name}}
+                            </label>
+                        </div>
                     </div>
-                    <timeline-chart token_timeline="tokens_timeline"></timeline-chart>
+
+                    <timeline-chart token_timeline=" tokenTimeline"></timeline-chart>
                 </div>
             </div>
         </div>
