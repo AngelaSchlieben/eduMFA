@@ -189,26 +189,26 @@
                     <div class="chart-controls">
                         <label translate>TimeFrame:</label>
                         <select class="form-control" ng-model="selectedTimeFrame"
-                            ng-options="x.label for x in timeFrame" ng-change="getTokenTimeline()"></select>
+                            ng-options="x.label for x in timeFrame" ng-change="onTimeFrameChange()"></select>
                         <label translate>StatsKeys:</label>
-                        <p>
-                            <isteven-multi-select ng-show="availableStatsKeys.length > 0"
-                                input-model="availableStatsKeys" output-model="selectedStatsKeys" button-label="name"
-                                item-label="name" tick-property="selected" index-property="id"
-                                on-item-click="getTokenTimeline()" on-select-all="getTokenTimeline()"
-                                on-select-none="clearTimeLine()" on-reset="clearTimeLine()">
-                            </isteven-multi-select>
+                        <br>
+                        <isteven-multi-select ng-show="availableStatsKeys.length > 0" input-model="availableStatsKeys"
+                            output-model="selectedStatsKeys" button-label="name" item-label="name"
+                            tick-property="selected" index-property="id" on-item-click="toggleStatsKey(data)"
+                            on-select-all="addAllToTimeline()" on-select-none="clearTimeLine()"
+                            on-reset="resetTimeline()">
+                        </isteven-multi-select>
 
                         <div style="display: flex; flex-wrap: wrap; gap: 6px 10px;">
                             <!-- checkboxen next to each other -->
-                            <label translate>Legend:</label>
+                            <label translate>Legend:</label><br>
                             <label ng-repeat="key in selectedStatsKeys">
                                 <span ng-style="{'background-color': key.color}"
-                                    style="display: inline-block; width: 25px; height: 15px; ">
-                                    <!-- color-element for chart legend -->
-                                </span>
-                                <input type="checkbox" ng-model="selectedStatsKeys" ng-change="changeHidden(key)">
-                                {{key.name}}
+                                    style="display: inline-block; width: 25px; height: 15px; border-radius: 3px; border: 1px solid #ccc;">
+                                </span> <!-- style needed for display of legend -->
+                                <label>
+                                    <input type="checkbox" ng-model="key.checked" ng-change="changeHidden(key)" display= "none";>
+                                    {{key.name}}</label>
                             </label>
                         </div>
                     </div>

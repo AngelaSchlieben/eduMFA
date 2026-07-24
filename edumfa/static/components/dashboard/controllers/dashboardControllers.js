@@ -169,57 +169,82 @@ myApp.controller("dashboardController", ["ConfigFactory", "TokenFactory",
             return 0;
         };
 
-        $scope.tokenTimeline = {
-            datasets: []
+        const emptyDefaultTimeline = {
+            data: { datasets: [] },
+            options: {
+                plugins: {
+                    decimation: {
+                        enabled: true,
+                        algorithm: "lttb",
+                        samples: 500,
+                        threshold: 500
+                    }
+                }
+            }
         };
+        $scope.tokenTimeline = angular.copy(emptyDefaultTimeline)
+        $scope.pendingRequests = {};
+        $scope.datasetCache = {};
 
         $scope.timeFrame = [
-            { label: "1 Day", unit: "day", amount: 1 },
+            { label: "24 hours", unit: "hour", amount: 24 },
             { label: "1 Week", unit: "day", amount: 7 },
             { label: "1 Month", unit: "month", amount: 1 },
             { label: "3 Months", unit: "month", amount: 3 },
             { label: "6 Months", unit: "month", amount: 6 },
             { label: "1 Year", unit: "year", amount: 1 },
             { label: "All", unit: "year", amount: 100 }
-        ]
+        ];
+        $scope.selectedTimeFrame = $scope.timeFrame[0]
 
-        $scope.selectedTimeFrame = $scope.timeFrame[0];
-        $scope.selectedStatsKeys = [];
-        $scope.availableStatsKeys = [];
-        
+        const colorMap = {
+            hardware_tokens: '#4e79a7',
+            software_tokens: '#f28e2b',
+            total_tokens: '#e15759',
+            user_with_token: '#76b7b2',
+            assigned_tokens: '#59a14f',
+            unassigned_hardware_tokens: '#edc948'
+        };
 
-        $scope.generateRandomColor = function () {
+        function generateColor() {
             const chars = '0123456789ABCDEF';
             let color = '#';
             for (let i = 0; i < 6; i++) {
                 color += chars[Math.floor(Math.random() * 16)];
             }
             return color
-        }
-
-        $scope.getAvailableStatsKeys = function () {
-            $scope.selectedStatsKeys = [];
-            $scope.availableStatsKeys = [];
-            MonitoringFactory.get_stats_keys(function (data) {
-                var newList = [];
-                data.result.value.forEach(function (key) {
-                    newList.push({
-                        id: key,
-                        name: key,
-                        color: $scope.generateRandomColor(),
-                        selected: false
-                    });
-                });
-                $scope.availableStatsKeys = newList;
-            });
         };
 
-        $scope.getStartTime = function (selectedTimeFrame) {
+        $scope.getAvailableStatsKeys = function () {
+            $scope.selectedStatsKeys = []
+            $scope.availableStatsKeys = []
+            MonitoringFactory.get_stats_keys(function (data) {
+                var newList = [];
+                data.result.value.forEach(function (sk) {
+                    newList.push({
+                        id: sk,
+                        name: sk,
+                        color: colorMap[sk] || generateColor(),
+                        selected: false,
+                        checked: true
+                    })
+                })
+                $scope.availableStatsKeys = newList
+            })
+        };
+
+        function getStartTime(selectedTimeFrame) {
             var today = new Date()
             var day = today.getDate()
             var month = today.getMonth()
             var year = today.getFullYear()
+            var hours = today.getHours()
+            var minutes = today.getMinutes()
 
+            if (selectedTimeFrame.unit === "hour") {
+                hours = hours - selectedTimeFrame.amount
+                return new Date(year, month, day, hours, minutes)
+            }
             if (selectedTimeFrame.unit === "day") {
                 day = day - selectedTimeFrame.amount
             }
@@ -230,42 +255,121 @@ myApp.controller("dashboardController", ["ConfigFactory", "TokenFactory",
                 year = year - selectedTimeFrame.amount
             }
             return new Date(year, month, day)
-        }
+        };
 
-        $scope.changeHidden = function (key) {
-            var ds = $scope.tokenTimeline.datasets.find(d => d.label === key.name);
-            if (ds) {
-                ds.hidden = !ds.hidden;
+        $scope.changeHidden = function (sk) {
+            var dataset = $scope.tokenTimeline.data.datasets.find(ds => ds.label === sk.name)
+            if (dataset) {
+                dataset.hidden = !sk.checked
             }
-        }
+        };
+
+        $scope.resetHidden = function (sk) {
+            sk.checked = true
+            $scope.changeHidden(sk)
+        };
 
         $scope.clearTimeLine = function () {
-            $scope.tokenTimeline = {
-                datasets: []
-            };
-        }
+            $scope.tokenTimeline.data.datasets = []
+        };
 
-        $scope.getTokenTimeline = function () {
+        $scope.resetTimeline = function () {
+            $scope.selectedTimeFrame = $scope.timeFrame[0]
+            $scope.tokenTimeline = angular.copy(emptyDefaultTimeline)
+        };
+
+        $scope.resetAll = function () {
+            $scope.pendingRequests = {};
+            $scope.datasetCache = {};
+            $scope.getAvailableStatsKeys()
+            $scope.resetTimeline()
+        };
+
+        $scope.getDataset = function (sk, callback) {
+            var startTime = getStartTime($scope.selectedTimeFrame)
+            var key = sk.name + "|" + $scope.selectedTimeFrame.label
+            // Todo: pendingRequests -> gleiche keys abfangen
+            if ($scope.datasetCache[key]) {
+                callback($scope.datasetCache[key])
+                return
+            }
+            if ($scope.pendingRequests[cacheKey]) {
+                $scope.pendingRequests[cacheKey].push({ callback: callback});
+                return;
+            }
+            $scope.pendingRequests[cacheKey] = [{ callback: callback}];
+
+            MonitoringFactory.get_monitored(sk.name, { start: startTime }, function (data) {
+                var d = data.result.value;
+                var color = sk.color;
+                var points = d
+                    .map(e => ({ x: new Date(e[0]).getTime(), y: e[1] }))
+                    .filter(p => Number.isFinite(p.x) && Number.isFinite(p.y))
+                    .sort((a, b) => a.x - b.x);
+                var dataset = {
+                    label: sk.name,
+                    data: points,
+                    borderColor: color,
+                    backgroundColor: color,
+                    pointBackgroundColor: color,
+                    hidden: false
+                }
+                $scope.datasetCache[key] = dataset
+                var waiters = $scope.pendingRequests[cacheKey];
+                delete $scope.pendingRequests[cacheKey];
+                waiters.forEach(function (w) {
+                    w.callback(dataset); 
+                });
+            })
+        };
+
+        function isStillRelevant(sk, timeFrame) {
+            var stillSelected = $scope.selectedStatsKeys.some(key => key.name === sk.name)
+            var sameTimeFrame = timeFrame === $scope.selectedTimeFrame.label
+            var NotInDataset = !$scope.tokenTimeline.data.datasets.some(ds => ds.label === sk.name);
+            return stillSelected && sameTimeFrame && NotInDataset
+        };
+
+        $scope.addToTimeline = function (sk) {
+            var timeFrame = $scope.selectedTimeFrame.label
+            $scope.getDataset(sk, function (dataset) {
+                if (isStillRelevant(sk, timeFrame))
+                    $scope.tokenTimeline.data.datasets.push(dataset)
+            })
+        };
+
+        $scope.removeFromTimeline = function (ds) {
+            var index = $scope.tokenTimeline.data.datasets.indexOf(ds)
+            if (index > -1) {
+                $scope.tokenTimeline.data.datasets.splice(index, 1)
+            }
+        };
+
+        $scope.toggleStatsKey = function (sk) {
+            var exists = $scope.tokenTimeline.data.datasets.find(ds => ds.label === sk.name);
+            if (exists) {
+                $scope.removeFromTimeline(exists)
+            } else {
+                $scope.addToTimeline(sk)
+            }
+        };
+
+        $scope.onTimeFrameChange = function () {
             $scope.clearTimeLine()
-            var newTimeline = []
-            var startTime = $scope.getStartTime($scope.selectedTimeFrame)
+            $scope.selectedStatsKeys.forEach(sk => {
+                $scope.addToTimeline(sk)
+                $scope.resetHidden(sk)
+            })
+        };
 
-            $scope.selectedStatsKeys.forEach(sk =>
-                MonitoringFactory.get_monitored(sk.name, { start: startTime }, function (data) {
-                    var d = data.result.value;
-                    var color = sk.color;
-                    var dataset = {
-                        label: sk.name,
-                        data: d.map(e => ({ x: new Date(e[0].replace(" ", "T")), y: e[1] })),
-                        borderColor: color,
-                        backgroundColor: color,
-                        pointBackgroundColor: color,
-                        hidden: false
-                    }
-                    newTimeline.push(dataset)
-                }),
-            )
-            $scope.tokenTimeline.datasets = newTimeline
+        $scope.addAllToTimeline = function () {
+            $scope.availableStatsKeys.forEach(sk => {
+                var needed = !$scope.tokenTimeline.data.datasets.some(ds => ds.label === sk.name);
+                if (needed) {
+                    $scope.addToTimeline(sk)
+                }
+                $scope.resetHidden(sk)
+            })
         };
 
         if (AuthFactory.checkRight('tokenlist')) {
@@ -305,7 +409,7 @@ myApp.controller("dashboardController", ["ConfigFactory", "TokenFactory",
                 $scope.getAdministration();
             }
             if (AuthFactory.checkRight('statistics_read')) {
-                $scope.getAvailableStatsKeys();
+                $scope.resetAll();
             }
         });
     }]);
